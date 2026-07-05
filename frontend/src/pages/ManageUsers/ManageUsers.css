@@ -1,0 +1,99 @@
+.manage-users-page {
+  display: grid;
+  gap: 22px;
+}
+
+.breadcrumb {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.manage-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+
+.manage-card p {
+  color: #6b7280;
+}
+
+.user-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.user-box {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.user-box p {
+  margin: 6px 0;
+}
+
+.user-box button,
+.modal-actions button {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 5px;
+  padding: 9px 13px;
+  background: #2563eb;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.edit-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.edit-card {
+  width: min(100%, 760px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.edit-card h2,
+.modal-actions {
+  grid-column: 1 / -1;
+}
+
+.edit-card input,
+.edit-card select {
+  padding: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-actions .cancel {
+  background: #6b7280;
+}
+
+@media (max-width: 760px) {
+  .edit-card {
+    grid-template-columns: 1fr;
+  }
+}

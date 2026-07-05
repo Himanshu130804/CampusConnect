@@ -1,0 +1,132 @@
+.portal-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  background: #f3f4f6;
+}
+
+.portal-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  height: 100vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.portal-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 18px 20px;
+  color: #1d4ed8;
+  font-size: 20px;
+  font-weight: 900;
+  border-bottom: 1px solid #eef2f7;
+  white-space: nowrap;
+}
+
+.brand-icon { flex: 0 0 auto; }
+.brand-text { overflow: hidden; text-overflow: ellipsis; }
+
+.role-card {
+  margin: 14px 16px 8px;
+  padding: 12px 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: grid;
+  gap: 3px;
+}
+.role-card b { color: #111827; font-size: 14px; }
+.role-card span { color: #64748b; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.portal-menu { padding: 4px 10px 24px; }
+.portal-menu section { margin-top: 12px; }
+.portal-menu p {
+  margin: 0 0 6px;
+  padding: 0 12px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.portal-menu a {
+  display: block;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 750;
+  border: 1px solid transparent;
+}
+.portal-menu a:hover,
+.portal-menu a.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.portal-main { min-width: 0; }
+.portal-topbar {
+  min-height: 72px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.mobile-menu-btn { display: none; }
+.topbar-title { min-width: 0; }
+.portal-topbar h1 { margin: 0; color: #0f172a; font-size: 20px; line-height: 1.2; }
+.portal-topbar span { color: #64748b; font-size: 13px; font-weight: 700; }
+.portal-user { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.portal-user a { color: #2563eb; text-decoration: none; font-weight: 800; }
+.notification-link { font-size: 18px; }
+.user-chip { display: flex; align-items: center; gap: 8px; }
+.user-chip b { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: #334155; }
+.user-chip span {
+  width: 38px; height: 38px; display: grid; place-items: center; border-radius: 999px;
+  background: #111827; color: white; font-weight: 900;
+}
+.portal-user button,
+.mobile-menu-btn {
+  border: 0; border-radius: 10px; padding: 9px 12px; background: #2563eb; color: white; font-weight: 850; cursor: pointer;
+}
+.portal-content { padding: 22px; max-width: 1280px; margin: 0 auto; width: 100%; }
+.portal-overlay { display: none; }
+
+@media (max-width: 900px) {
+  .portal-shell { grid-template-columns: 1fr; }
+  .portal-sidebar {
+    position: fixed; left: 0; top: 0; transform: translateX(-105%); width: min(82vw, 292px);
+    transition: transform .2s ease; box-shadow: 18px 0 40px rgba(15,23,42,.18);
+  }
+  .portal-sidebar.open { transform: translateX(0); }
+  .portal-overlay { display: block; position: fixed; inset: 0; background: rgba(15,23,42,.32); border: 0; z-index: 15; }
+  .mobile-menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .portal-topbar { padding: 10px 12px; min-height: 62px; }
+  .portal-topbar h1 { font-size: 17px; }
+  .portal-topbar span { display: none; }
+  .user-chip b, .notification-link { display: none; }
+  .user-chip span { width: 34px; height: 34px; }
+  .portal-user { gap: 6px; }
+  .portal-user button { padding: 8px 9px; font-size: 12px; }
+  .portal-content { padding: 12px; }
+}
+
+@media (max-width: 420px) {
+  .portal-brand { min-height: 64px; padding: 14px 16px; font-size: 18px; }
+  .portal-content { padding: 10px; }
+  .portal-topbar { gap: 8px; }
+  .portal-topbar h1 { font-size: 16px; }
+}
