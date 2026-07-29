@@ -1,6 +1,12 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { createAcademicOption, getAcademicOptions, setAcademicOptionStatus, updateAcademicOption } from "../api/academicApi";
+import {
+  createAcademicOption,
+  getAcademicOptions,
+  getRegistrationAcademicOptions,
+  setAcademicOptionStatus,
+  updateAcademicOption
+} from "../api/academicApi";
 import { scopedProgrammes, scopedSemesters, scopedYears, uniqueNames } from "../utils/academicScope";
 import "./AcademicMaster/AcademicMaster.css";
 
@@ -25,19 +31,79 @@ const SubjectMaster = () => {
   const isHod = user?.role === "hod";
   const canManage = ["super_admin", "edp", "hod", "teacher_admin"].includes(user?.role);
   const [items, setItems] = useState([]);
+  const [registrationDepartments, setRegistrationDepartments] = useState([]);
   const [form, setForm] = useState({ ...initial, department: isHod ? (user?.department || "") : "" });
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => setItems(await getAcademicOptions({ includeInactive: true }));
-  useEffect(() => { load(); }, []);
+  const load = async () => {
+  try {
+    const [academicItems, registrationOptions] = await Promise.all([
+      getAcademicOptions({ includeInactive: true }),
+      getRegistrationAcademicOptions(),
+    ]);
 
-  const departments = useMemo(() => {
-    const activeDepartments = uniqueNames(items.filter((item) => item.type === "department" && item.isActive !== false), "name");
-    const subjectDepartments = uniqueNames(items.filter((item) => item.type === "subject" && item.department), "department");
-    const merged = [...activeDepartments, ...subjectDepartments, form.department].filter(Boolean);
-    return merged.filter((name, index, list) => list.indexOf(name) === index);
-  }, [items, form.department]);
+    setItems(Array.isArray(academicItems) ? academicItems : []);
+
+    setRegistrationDepartments(
+      Array.isArray(registrationOptions?.departments)
+        ? registrationOptions.departments
+        : []
+    );
+  } catch (error) {
+    console.error("Unable to load Subject Master options:", error);
+    setItems([]);
+    setRegistrationDepartments([]);
+  }
+};
+
+useEffect(() => {
+  load();
+}, []);
+
+ const departments = useMemo(() => {
+  const activeDepartments = uniqueNames(
+    items.filter(
+      (item) =>
+        item.type === "department" &&
+        item.isActive !== false
+    ),
+    "name"
+  );
+
+  const subjectDepartments = uniqueNames(
+    items.filter(
+      (item) =>
+        item.type === "subject" &&
+        item.department
+    ),
+    "department"
+  );
+
+  const registrationNames = registrationDepartments
+    .map((department) =>
+      typeof department === "string"
+        ? department
+        : department?.name
+    )
+    .filter(Boolean);
+
+  const merged = [
+    ...registrationNames,
+    ...activeDepartments,
+    ...subjectDepartments,
+    form.department,
+  ]
+    .map((name) => String(name).trim())
+    .filter(Boolean);
+
+  return merged.filter(
+    (name, index, list) =>
+      list.findIndex(
+        (item) => normalize(item) === normalize(name)
+      ) === index
+  );
+}, [items, registrationDepartments, form.department]);
   const programmes = useMemo(() => {
     const scoped = scopedProgrammes(items.filter((item) => item.isActive !== false), form.department);
     return form.programme && !scoped.includes(form.programme) ? [...scoped, form.programme] : scoped;
