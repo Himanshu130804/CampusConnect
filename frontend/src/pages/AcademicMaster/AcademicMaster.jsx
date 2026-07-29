@@ -8,7 +8,7 @@ import {
   setAcademicOptionStatus,
   updateAcademicOption,
 } from "../../api/academicApi";
-import { normalizeAcademic, uniqueNames } from "../../utils/academicScope";
+import { normalizeAcademic } from "../../utils/academicScope";
 import "./AcademicMaster.css";
 
 const initialDepartment = { name: "", code: "" };
@@ -34,7 +34,7 @@ const programmeDefaults = (name = "") => {
 
 const AcademicMaster = () => {
   const [items, setItems] = useState([]);
-  const [savingDepartment, setSavingDepartment] = useState(false);
+ const [savingDepartment, setSavingDepartment] = useState(false);
 const [savingProgramme, setSavingProgramme] = useState(false);
   const [loading, setLoading] = useState(false);
   const [departmentForm, setDepartmentForm] = useState(initialDepartment);
@@ -66,7 +66,13 @@ const [savingProgramme, setSavingProgramme] = useState(false);
   }
 };
 
-  useEffect(() => { load(); }, []);
+ useEffect(() => {
+  const fetchAcademicData = async () => {
+    await load();
+  };
+
+  fetchAcademicData();
+}, []);
 
   const dedupeBy = (list, getKey) => Array.from(new Map(list.map((item) => [getKey(item), item])).values());
   const departments = useMemo(() => dedupeBy(items.filter((item) => item.type === "department"), (item) => normalizeAcademic(item.name)), [items]);
@@ -84,14 +90,21 @@ const [savingProgramme, setSavingProgramme] = useState(false);
       });
   }, [activeDepartments]);
   const programmeItems = useMemo(() => dedupeBy(items.filter((item) => item.type === "programme" && item.department), (item) => `${normalizeAcademic(item.department)}:${normalizeAcademic(item.name)}`), [items]);
-  const activeProgrammes = useMemo(() => programmeItems.filter((item) => item.isActive !== false), [programmeItems]);
-
-  const programmesByDepartment = activeProgrammes.reduce((acc, item) => {
+ 
+ const programmesByDepartment = programmeItems.reduce(
+  (acc, item) => {
     const key = item.department || "Unmapped";
-    if (!acc[key]) acc[key] = [];
+
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+
     acc[key].push(item);
+
     return acc;
-  }, {});
+  },
+  {}
+);
 
  const submitDepartment = async (e) => {
   e.preventDefault();
@@ -238,24 +251,13 @@ const [savingProgramme, setSavingProgramme] = useState(false);
     });
   };
 
- const startProgrammeEdit = (item) => {
-  setEditingProgramme(item);
 
-  setProgrammeForm({
-    department: item.department || "",
-    name:
-      item.baseProgramme ||
-      item.name ||
-      "",
+  const startDepartmentEdit = (item) => {
+  setEditingDepartment(item);
+
+  setDepartmentForm({
+    name: item.name || "",
     code: item.code || "",
-    variant: item.variant || "",
-    specialization: item.specialization || "",
-    durationYears:
-      Number(item.durationYears) || 4,
-    semesterCount:
-      Number(item.semesterCount) || 8,
-    degreeLevel:
-      item.degreeLevel || "Undergraduate",
   });
 
   window.scrollTo({
@@ -264,40 +266,99 @@ const [savingProgramme, setSavingProgramme] = useState(false);
   });
 };
 
-  const startProgrammeEdit = (item) => {
-    setEditingProgramme(item);
-    setProgrammeForm({
-      department: item.department || "",
-      name: item.baseProgramme || item.name || "",
-      code: item.code || "",
-      variant: item.variant || "",
-      specialization: item.specialization || "",
-      durationYears: item.durationYears || 4,
-      semesterCount: item.semesterCount || 8,
-      degreeLevel: item.degreeLevel || "Undergraduate",
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+const startProgrammeEdit = (item) => {
+  setEditingProgramme(item);
 
-  const changeStatus = async (item, isActive) => {
-    const action = isActive ? "activate" : "deactivate";
-    if (!confirm(`Do you want to ${action} ${item.name}?`)) return;
+  setProgrammeForm({
+    department: item.department || "",
+    name: item.baseProgramme || item.name || "",
+    code: item.code || "",
+    variant: item.variant || "",
+    specialization: item.specialization || "",
+    durationYears: Number(item.durationYears) || 4,
+    semesterCount: Number(item.semesterCount) || 8,
+    degreeLevel: item.degreeLevel || "Undergraduate",
+  });
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+ const changeStatus = async (item, isActive) => {
+  const action = isActive ? "activate" : "deactivate";
+
+  if (!window.confirm(`Do you want to ${action} ${item.name}?`)) {
+    return;
+  }
+
+  try {
     await setAcademicOptionStatus(item._id, isActive);
-    load();
-  };
+    await load();
+  } catch (error) {
+    console.error("Academic status update error:", error);
 
-  const seed = async () => {
+    alert(
+      error?.response?.data?.message ||
+        error?.message ||
+        `Could not ${action} ${item.name}.`
+    );
+  }
+};
+
+ const seed = async () => {
+  try {
+    setLoading(true);
+
     await seedAcademicOptions();
-    alert("Default starter data checked. You can edit or deactivate it from this page.");
-    load();
-  };
 
-  const cleanup = async () => {
-    if (!confirm("This will deactivate duplicate active academic records. Continue?")) return;
+    alert(
+      "Default starter data checked. You can edit or deactivate it from this page."
+    );
+
+    await load();
+  } catch (error) {
+    console.error("Academic seed error:", error);
+
+    alert(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Default academic data could not be checked."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+const cleanup = async () => {
+  if (
+    !window.confirm(
+      "This will deactivate duplicate active academic records. Continue?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+    setLoading(true);
+
     const data = await cleanupAcademicOptions();
-    alert(data.message || "Academic data cleaned.");
-    load();
-  };
+
+    alert(data?.message || "Academic data cleaned.");
+
+    await load();
+  } catch (error) {
+    console.error("Academic cleanup error:", error);
+
+    alert(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Academic data could not be cleaned."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="academic-master-page simple-academic-page">
@@ -312,8 +373,18 @@ const [savingProgramme, setSavingProgramme] = useState(false);
           </p>
         </div>
         <div className="academic-actions">
-          <button type="button" onClick={seed}>{loading ? "Checking..." : "Check default data"}</button>
-          <button type="button" className="secondary-action" onClick={cleanup}>Clean duplicates</button>
+         <button type="button" onClick={seed} disabled={loading}>
+  {loading ? "Checking..." : "Check default data"}
+</button>
+          <button
+  type="button"
+  className="secondary-action"
+  onClick={cleanup}
+  disabled={loading}
+>
+  Clean duplicates
+</button>
+
           <Link to="/subject-master">Subject Master</Link>
         </div>
       </section>
