@@ -34,6 +34,8 @@ const programmeDefaults = (name = "") => {
 
 const AcademicMaster = () => {
   const [items, setItems] = useState([]);
+  const [savingDepartment, setSavingDepartment] = useState(false);
+const [savingProgramme, setSavingProgramme] = useState(false);
   const [loading, setLoading] = useState(false);
   const [departmentForm, setDepartmentForm] = useState(initialDepartment);
   const [programmeForm, setProgrammeForm] = useState(initialProgramme);
@@ -41,13 +43,28 @@ const AcademicMaster = () => {
   const [editingProgramme, setEditingProgramme] = useState(null);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      setItems(await getAcademicOptions({ includeInactive: "true" }));
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+
+  try {
+    const data = await getAcademicOptions({
+      includeInactive: "true",
+    });
+
+    setItems(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("Academic Master load error:", error);
+
+    alert(
+      error?.response?.data?.message ||
+      error?.message ||
+      "Academic data could not be loaded."
+    );
+
+    setItems([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => { load(); }, []);
 
@@ -76,42 +93,137 @@ const AcademicMaster = () => {
     return acc;
   }, {});
 
-  const submitDepartment = async (e) => {
-    e.preventDefault();
-    if (!departmentForm.name.trim()) return alert("Department name is required.");
-    if (editingDepartment) {
-      await updateAcademicOption(editingDepartment._id, { ...departmentForm, type: "department" });
-      alert("Department updated. The same official name will be used in registration and all dropdowns.");
-    } else {
-      await createAcademicOption({ type: "department", ...departmentForm });
-      alert("Department created. It is now available for programme mapping and registration.");
-    }
-    setDepartmentForm(initialDepartment);
-    setEditingDepartment(null);
-    load();
-  };
+ const submitDepartment = async (e) => {
+  e.preventDefault();
 
-  const submitProgramme = async (e) => {
-    e.preventDefault();
-    if (!programmeForm.department || !programmeForm.name.trim()) return alert("Department and programme are required.");
+  const name = departmentForm.name.trim();
+  const code = departmentForm.code.trim();
+
+  if (!name) {
+    return alert("Department name is required.");
+  }
+
+  setSavingDepartment(true);
+
+  try {
     const payload = {
-      type: "programme",
-      ...programmeForm,
-      durationYears: Number(programmeForm.durationYears),
-      semesterCount: Number(programmeForm.semesterCount),
+      type: "department",
+      name,
+      code,
     };
-    if (editingProgramme) {
-      await updateAcademicOption(editingProgramme._id, payload);
-      alert("Programme mapping updated. Duration and semester count will now be used everywhere.");
+
+    if (editingDepartment) {
+      await updateAcademicOption(
+        editingDepartment._id,
+        payload
+      );
+
+      alert("Department updated successfully.");
     } else {
       await createAcademicOption(payload);
+
+      alert("Department created successfully.");
+    }
+
+    setDepartmentForm({ ...initialDepartment });
+    setEditingDepartment(null);
+
+    await load();
+  } catch (error) {
+    console.error("Department save error:", error);
+
+    alert(
+      error?.response?.data?.message ||
+      error?.message ||
+      "Department could not be saved."
+    );
+  } finally {
+    setSavingDepartment(false);
+  }
+};
+
+ const submitProgramme = async (e) => {
+  e.preventDefault();
+
+  const department = programmeForm.department.trim();
+  const name = programmeForm.name.trim();
+
+  if (!department) {
+    return alert("Please select a department.");
+  }
+
+  if (!name) {
+    return alert("Programme name is required.");
+  }
+
+  const durationYears = Number(
+    programmeForm.durationYears
+  );
+
+  const semesterCount = Number(
+    programmeForm.semesterCount
+  );
+
+  if (
+    !Number.isFinite(durationYears) ||
+    durationYears < 1
+  ) {
+    return alert("Programme duration must be at least 1 year.");
+  }
+
+  if (
+    !Number.isFinite(semesterCount) ||
+    semesterCount < 1
+  ) {
+    return alert("Semester count must be at least 1.");
+  }
+
+  setSavingProgramme(true);
+
+  try {
+    const payload = {
+      type: "programme",
+      department,
+      name,
+      baseProgramme: name,
+      code: programmeForm.code.trim(),
+      variant: programmeForm.variant.trim(),
+      specialization:
+        programmeForm.specialization.trim(),
+      durationYears,
+      semesterCount,
+      degreeLevel: programmeForm.degreeLevel,
+    };
+
+    if (editingProgramme) {
+      await updateAcademicOption(
+        editingProgramme._id,
+        payload
+      );
+
+      alert("Programme mapping updated successfully.");
+    } else {
+      await createAcademicOption(payload);
+
       alert("Programme mapped successfully.");
     }
-    setProgrammeForm(initialProgramme);
-    setEditingProgramme(null);
-    load();
-  };
 
+    setProgrammeForm({ ...initialProgramme });
+    setEditingProgramme(null);
+
+    await load();
+  } catch (error) {
+    console.error("Programme save error:", error);
+
+    alert(
+      error?.response?.data?.message ||
+      error?.message ||
+      "Programme mapping could not be saved."
+    );
+  } finally {
+    setSavingProgramme(false);
+  }
+};
   const updateProgramme = (key, value) => {
     setProgrammeForm((current) => {
       const next = { ...current, [key]: value };
@@ -126,11 +238,31 @@ const AcademicMaster = () => {
     });
   };
 
-  const startDepartmentEdit = (item) => {
-    setEditingDepartment(item);
-    setDepartmentForm({ name: item.name || "", code: item.code || "" });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+ const startProgrammeEdit = (item) => {
+  setEditingProgramme(item);
+
+  setProgrammeForm({
+    department: item.department || "",
+    name:
+      item.baseProgramme ||
+      item.name ||
+      "",
+    code: item.code || "",
+    variant: item.variant || "",
+    specialization: item.specialization || "",
+    durationYears:
+      Number(item.durationYears) || 4,
+    semesterCount:
+      Number(item.semesterCount) || 8,
+    degreeLevel:
+      item.degreeLevel || "Undergraduate",
+  });
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
 
   const startProgrammeEdit = (item) => {
     setEditingProgramme(item);
@@ -200,8 +332,29 @@ const AcademicMaster = () => {
           <form className="academic-form compact dept-form" onSubmit={submitDepartment}>
             <label><span>Department name</span><input value={departmentForm.name} onChange={(e) => setDepartmentForm({ ...departmentForm, name: e.target.value })} placeholder="Architecture" /></label>
             <label><span>Code</span><input value={departmentForm.code} onChange={(e) => setDepartmentForm({ ...departmentForm, code: e.target.value })} placeholder="ARCH" /></label>
-            <button>{editingDepartment ? "Update Department" : "Save Department"}</button>
-            {editingDepartment && <button type="button" className="secondary-action" onClick={() => { setEditingDepartment(null); setDepartmentForm(initialDepartment); }}>Cancel</button>}
+           <button
+  type="submit"
+  disabled={savingDepartment}
+>
+  {savingDepartment
+    ? "Saving..."
+    : editingDepartment
+      ? "Update Department"
+      : "Save Department"}
+</button>
+           {editingDepartment && (
+  <button
+    type="button"
+    className="secondary-action"
+    disabled={savingDepartment}
+    onClick={() => {
+      setEditingDepartment(null);
+      setDepartmentForm({ ...initialDepartment });
+    }}
+  >
+    Cancel
+  </button>
+)}
           </form>
         </article>
 
@@ -218,8 +371,29 @@ const AcademicMaster = () => {
             <label><span>Semesters</span><input type="number" min="1" value={programmeForm.semesterCount} onChange={(e) => updateProgramme("semesterCount", e.target.value)} /></label>
             <label><span>Degree level</span><select value={programmeForm.degreeLevel} onChange={(e) => updateProgramme("degreeLevel", e.target.value)}><option>Undergraduate</option><option>Postgraduate</option><option>Diploma</option><option>Integrated</option></select></label>
             <label><span>Code</span><input value={programmeForm.code} onChange={(e) => updateProgramme("code", e.target.value)} placeholder="BARCH / BSE" /></label>
-            <button>{editingProgramme ? "Update Programme" : "Save Programme"}</button>
-            {editingProgramme && <button type="button" className="secondary-action" onClick={() => { setEditingProgramme(null); setProgrammeForm(initialProgramme); }}>Cancel</button>}
+<button
+  type="submit"
+  disabled={savingProgramme}
+>
+  {savingProgramme
+    ? "Saving..."
+    : editingProgramme
+      ? "Update Programme"
+      : "Save Programme"}
+</button>
+            {editingProgramme && (
+  <button
+    type="button"
+    className="secondary-action"
+    disabled={savingProgramme}
+    onClick={() => {
+      setEditingProgramme(null);
+      setProgrammeForm({ ...initialProgramme });
+    }}
+  >
+    Cancel
+  </button>
+)}
           </form>
         </article>
       </section>

@@ -328,12 +328,21 @@ export const createAcademicOption = async (req, res) => {
   const role = req.user?.role;
 
   if (role === "hod") {
-    if (!req.user.department) return res.status(403).json({ message: "HOD department is not assigned" });
-    payload.department = displayName(req.user.department);
-    if (!["subject", "section"].includes(type)) {
-      return res.status(403).json({ message: "HOD can manage only department subjects and sections" });
-    }
+  if (!req.user.department) {
+    return res.status(403).json({
+      message: "HOD department is not assigned",
+    });
   }
+
+  payload.department = displayName(req.user.department);
+
+  if (!["programme", "subject", "section"].includes(type)) {
+    return res.status(403).json({
+      message:
+        "HOD can manage only programmes, subjects and sections of their own department",
+    });
+  }
+}
 
   if (type === "department") {
     if (role !== "super_admin") return res.status(403).json({ message: "Only Super Admin can create departments" });
@@ -346,19 +355,67 @@ export const createAcademicOption = async (req, res) => {
   }
 
   if (type === "programme") {
-    if (role !== "super_admin" && role !== "edp") return res.status(403).json({ message: "Only Super Admin or EDP can map programmes" });
-    if (!payload.department) return res.status(400).json({ message: "Department is required for a programme mapping" });
-    const defaultMeta = programmeDefaults(name);
-    payload.baseProgramme = cleanProgrammeName(payload.baseProgramme || name);
-    payload.name = programmeDisplayName(payload);
-    payload.durationYears = Math.max(1, Number(payload.durationYears || defaultMeta.durationYears));
-    payload.semesterCount = Math.max(1, Number(payload.semesterCount || payload.durationYears * 2 || defaultMeta.semesterCount));
-    payload.degreeLevel = payload.degreeLevel || defaultMeta.degreeLevel;
-    payload.programme = "";
-    payload.year = "";
-    payload.semester = "";
-    payload.basketName = "";
+  if (!["super_admin", "edp", "hod"].includes(role)) {
+    return res.status(403).json({
+      message:
+        "Only Super Admin, EDP or HOD can map programmes",
+    });
   }
+
+  // HOD is always restricted to their assigned department.
+  if (role === "hod") {
+    if (!req.user?.department) {
+      return res.status(403).json({
+        message: "HOD department is not assigned",
+      });
+    }
+
+    payload.department = displayName(
+      req.user.department
+    );
+  }
+
+  if (!payload.department) {
+    return res.status(400).json({
+      message:
+        "Department is required for a programme mapping",
+    });
+  }
+
+  const defaultMeta = programmeDefaults(name);
+
+  payload.baseProgramme = cleanProgrammeName(
+    payload.baseProgramme || name
+  );
+
+  payload.name = programmeDisplayName(payload);
+
+  payload.durationYears = Math.max(
+    1,
+    Number(
+      payload.durationYears ||
+      defaultMeta.durationYears
+    )
+  );
+
+  payload.semesterCount = Math.max(
+    1,
+    Number(
+      payload.semesterCount ||
+      payload.durationYears * 2 ||
+      defaultMeta.semesterCount
+    )
+  );
+
+  payload.degreeLevel =
+    payload.degreeLevel ||
+    defaultMeta.degreeLevel;
+
+  payload.programme = "";
+  payload.year = "";
+  payload.semester = "";
+  payload.basketName = "";
+}
 
   if (type === "subject") {
     if (!payload.department || !payload.programme || !payload.year || !payload.semester) {
@@ -430,9 +487,25 @@ export const updateAcademicOption = async (req, res) => {
   if (option.type === "department" && role !== "super_admin") {
     return res.status(403).json({ message: "Only Super Admin can edit departments" });
   }
-  if (option.type === "programme" && !["super_admin", "edp"].includes(role)) {
-    return res.status(403).json({ message: "Only Super Admin or EDP can edit programmes" });
+  if (option.type === "programme") {
+  if (!["super_admin", "edp", "hod"].includes(role)) {
+    return res.status(403).json({
+      message:
+        "Only Super Admin, EDP or HOD can edit programmes",
+    });
   }
+
+  if (
+    role === "hod" &&
+    normalize(req.user?.department) !==
+      normalize(option.department)
+  ) {
+    return res.status(403).json({
+      message:
+        "HOD can edit programmes only for their own department",
+    });
+  }
+}
   if (option.type === "subject") {
     if (role === "hod" && normalize(req.user.department) !== normalize(option.department)) {
       return res.status(403).json({ message: "HOD can edit subjects only for their own department" });
@@ -453,10 +526,26 @@ export const updateAcademicOption = async (req, res) => {
     payload.normalizedName = normalize(payload.name);
   }
 
-  if (option.type === "programme") {
-    if (!payload.department && !option.department) {
-      return res.status(400).json({ message: "Department is required for programme mapping" });
+ if (option.type === "programme") {
+  // HOD cannot move a programme to another department.
+  if (role === "hod") {
+    if (!req.user?.department) {
+      return res.status(403).json({
+        message: "HOD department is not assigned",
+      });
     }
+
+    payload.department = displayName(
+      req.user.department
+    );
+  }
+
+  if (!payload.department && !option.department) {
+    return res.status(400).json({
+      message:
+        "Department is required for programme mapping",
+    });
+  }
     const defaults = programmeDefaults(payload.name || option.name);
     payload.department = displayName(payload.department || option.department);
     payload.baseProgramme = cleanProgrammeName(payload.baseProgramme || payload.name || option.baseProgramme || option.name);
@@ -542,7 +631,25 @@ export const deactivateAcademicOption = async (req, res) => {
 
   const role = req.user?.role;
   if (option.type === "department" && role !== "super_admin") return res.status(403).json({ message: "Only Super Admin can deactivate departments" });
-  if (option.type === "programme" && !["super_admin", "edp"].includes(role)) return res.status(403).json({ message: "Only Super Admin or EDP can deactivate programmes" });
+  if (option.type === "programme") {
+  if (!["super_admin", "edp", "hod"].includes(role)) {
+    return res.status(403).json({
+      message:
+        "Only Super Admin, EDP or HOD can manage programme status",
+    });
+  }
+
+  if (
+    role === "hod" &&
+    normalize(req.user?.department) !==
+      normalize(option.department)
+  ) {
+    return res.status(403).json({
+      message:
+        "HOD can manage programmes only for their own department",
+    });
+  }
+}
   if (option.type === "subject" && !["super_admin", "edp", "hod", "teacher_admin"].includes(role)) return res.status(403).json({ message: "You do not have permission" });
 
   option.isActive = req.body?.isActive !== undefined ? Boolean(req.body.isActive) : false;
