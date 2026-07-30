@@ -652,7 +652,19 @@ export const deactivateAcademicOption = async (req, res) => {
 }
   if (option.type === "subject" && !["super_admin", "edp", "hod", "teacher_admin"].includes(role)) return res.status(403).json({ message: "You do not have permission" });
 
-  option.isActive = req.body?.isActive !== undefined ? Boolean(req.body.isActive) : false;
+ if (
+  req.body?.isActive !== undefined &&
+  typeof req.body.isActive !== "boolean"
+) {
+  return res.status(400).json({
+    message: "isActive must be a boolean",
+  });
+}
+
+option.isActive =
+  req.body?.isActive !== undefined
+    ? req.body.isActive
+    : false;
   await option.save();
   res.json({ message: option.isActive ? "Academic item activated" : "Academic item deactivated", item: option });
 };
@@ -680,6 +692,13 @@ export const cleanupAcademicDuplicates = async (req, res) => {
 };
 
 export const seedAcademicOptions = async (req, res) => {
+  if (req.user?.role !== "super_admin") {
+    return res.status(403).json({
+      message:
+        "Only Super Admin can seed academic data",
+    });
+  }
+
   const seed = [
     { type: "department", name: "Computer Science and Engineering" },
     { type: "department", name: "Information Technology" },
